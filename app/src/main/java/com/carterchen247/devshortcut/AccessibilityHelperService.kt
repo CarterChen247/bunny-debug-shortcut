@@ -1,7 +1,9 @@
 package com.carterchen247.devshortcut
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Intent
 import android.graphics.PixelFormat
+import android.provider.Settings
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -69,6 +71,10 @@ class AccessibilityHelperService : AccessibilityService() {
         wm.addView(mLayout, lp)
 
         configureScrollButton()
+
+        val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
     }
 
     private fun configureScrollButton() {

@@ -10,15 +10,42 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Button
 import android.widget.FrameLayout
+import kotlinx.coroutines.*
 import java.util.ArrayDeque
 import java.util.Deque
 
 
 class AccessibilityHelperService : AccessibilityService() {
 
+    companion object {
+        private const val TARGET_TEXT = "USB"
+        private const val INTERVAL_SCROLL = 200L
+    }
+
     private lateinit var mLayout: FrameLayout
 
+    private var isTargetVisible = false
+    private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private var scrollJob: Job? = null
+
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        when (event.eventType) {
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
+                scrollJob?.cancel()
+            }
+
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+
+            }
+
+            AccessibilityEvent.TYPE_VIEW_SCROLLED -> {
+
+            }
+
+            else -> {
+                // do nothing
+            }
+        }
     }
 
     override fun onInterrupt() {
@@ -47,13 +74,32 @@ class AccessibilityHelperService : AccessibilityService() {
     private fun configureScrollButton() {
         val scrollButton = mLayout.findViewById<View>(R.id.scroll) as Button
         scrollButton.setOnClickListener {
-            scroll()
+            scrollToTarget(TARGET_TEXT)
         }
     }
 
-    private fun scroll() {
+    private fun scrollToTarget(target: String) {
+        isTargetVisible = false
+        scrollJob?.cancel()
+        scrollJob = coroutineScope.launch {
+            scrollToTargetInternal(target)
+        }
+    }
+
+    private suspend fun scrollToTargetInternal(target: String) {
+        if (isTargetVisible) {
+            return
+        }
+        val node = findNodeByText(rootInActiveWindow, target)
+        if (node != null) {
+            isTargetVisible = true
+            return
+        }
+
         val scrollableNode = findScrollableNode(rootInActiveWindow) ?: return
         scrollableNode.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD.id)
+        delay(INTERVAL_SCROLL)
+        scrollToTarget(target)
     }
 
     /**
@@ -73,5 +119,22 @@ class AccessibilityHelperService : AccessibilityService() {
             }
         }
         return null
+    }
+
+    private fun findNodeByText(root: AccessibilityNodeInfo, text: String): AccessibilityNodeInfo? {
+        for (i in 0 until root.childCount) {
+            val child = root.getChild(i) ?: continue
+            if (child.text?.toString()?.contains(text, ignoreCase = true) == true) {
+                return child
+            }
+            val result = findNodeByText(child, text)
+            if (result != null) return result
+        }
+        return null
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        coroutineScope.cancel()
     }
 }

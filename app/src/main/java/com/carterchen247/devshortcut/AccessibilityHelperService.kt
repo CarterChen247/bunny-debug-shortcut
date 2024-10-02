@@ -10,7 +10,6 @@ import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import android.widget.Button
 import android.widget.FrameLayout
 import androidx.core.view.isVisible
 import kotlinx.coroutines.*
@@ -75,7 +74,7 @@ class AccessibilityHelperService : AccessibilityService() {
         lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
         lp.width = WindowManager.LayoutParams.WRAP_CONTENT
         lp.height = WindowManager.LayoutParams.WRAP_CONTENT
-        lp.gravity = Gravity.TOP
+        lp.gravity = Gravity.TOP or Gravity.END
         val inflater = LayoutInflater.from(this)
         inflater.inflate(R.layout.action_bar, mLayout)
         wm.addView(mLayout, lp)
@@ -88,8 +87,7 @@ class AccessibilityHelperService : AccessibilityService() {
     }
 
     private fun configureScrollButton() {
-        val scrollButton = mLayout.findViewById<View>(R.id.scroll) as Button
-        scrollButton.setOnClickListener {
+        mLayout.findViewById<View>(R.id.scroll).setOnClickListener {
             scrollToTarget(TARGET_TEXT)
         }
     }

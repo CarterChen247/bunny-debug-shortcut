@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.provider.Settings
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -12,6 +13,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Button
 import android.widget.FrameLayout
+import androidx.core.view.isVisible
 import kotlinx.coroutines.*
 import java.util.ArrayDeque
 import java.util.Deque
@@ -37,7 +39,19 @@ class AccessibilityHelperService : AccessibilityService() {
             }
 
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                when {
+                    event.packageName == packageName -> {
+                        mLayout.isVisible = true
+                    }
 
+                    event.text.contains("開發人員選項") -> {
+                        mLayout.isVisible = true
+                    }
+
+                    else -> {
+                        mLayout.isVisible = false
+                    }
+                }
             }
 
             AccessibilityEvent.TYPE_VIEW_SCROLLED -> {

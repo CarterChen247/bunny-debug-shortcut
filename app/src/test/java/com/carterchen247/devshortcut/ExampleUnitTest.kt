@@ -1,4 +1,4 @@
-package com.carterchen247.devoptions
+package com.carterchen247.devshortcut
 
 import org.junit.Test
 

@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.carterchen247.devoptions"
+    namespace = "com.carterchen247.devshortcut"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.carterchen247.devoptions"
+        applicationId = "com.carterchen247.devshortcut"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

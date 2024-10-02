@@ -4,7 +4,6 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.provider.Settings
-import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -27,6 +26,7 @@ class AccessibilityHelperService : AccessibilityService() {
     }
 
     private lateinit var mLayout: FrameLayout
+    private val validTitles = ValidTitle.entries.map { it.string }
 
     private var isTargetVisible = false
     private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -39,18 +39,14 @@ class AccessibilityHelperService : AccessibilityService() {
             }
 
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                when {
-                    event.packageName == packageName -> {
-                        mLayout.isVisible = true
-                    }
-
-                    event.text.contains("開發人員選項") -> {
-                        mLayout.isVisible = true
-                    }
-
-                    else -> {
-                        mLayout.isVisible = false
-                    }
+                if (event.className?.startsWith("android.widget.") == true) {
+                    // ignore system UI
+                    return
+                }
+                if (event.packageName == "com.android.settings" && validTitles.intersect(event.text.toSet()).isNotEmpty()) {
+                    mLayout.isVisible = true
+                } else {
+                    mLayout.isVisible = false
                 }
             }
 

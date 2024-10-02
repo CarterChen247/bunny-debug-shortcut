@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">dev-options</string>
+    <string name="tile_label">developer shortcut</string>
 </resources>

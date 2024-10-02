@@ -19,8 +19,30 @@ class ShortcutTileService : TileService() {
             return
         }
 
+        if (!isAccessibilityServiceEnabled()) {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            startActivityAndCollapseInternal(intent)
+            return
+        }
+
         val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
         startActivityAndCollapseInternal(intent)
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val accessibilityEnabled = Settings.Secure.getInt(
+            contentResolver,
+            Settings.Secure.ACCESSIBILITY_ENABLED, 0
+        )
+        if (accessibilityEnabled == 1) {
+            val service = "${packageName}/${AccessibilityHelperService::class.java.canonicalName}"
+            val settingValue = Settings.Secure.getString(
+                contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            )
+            return (settingValue?.contains(service) == true)
+        }
+        return false
     }
 
     @SuppressLint("StartActivityAndCollapseDeprecated")

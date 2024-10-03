@@ -14,7 +14,6 @@ import android.widget.FrameLayout
 import androidx.core.view.isVisible
 import kotlinx.coroutines.*
 import java.util.ArrayDeque
-import java.util.Deque
 
 
 class AccessibilityHelperService : AccessibilityService() {
@@ -24,7 +23,7 @@ class AccessibilityHelperService : AccessibilityService() {
         private const val INTERVAL_SCROLL = 200L
     }
 
-    private lateinit var mLayout: FrameLayout
+    private lateinit var overlayLayout: FrameLayout
     private val validTitles = ValidTitle.entries.map { it.string }
 
     private var isTargetVisible = false
@@ -33,41 +32,34 @@ class AccessibilityHelperService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         when (event.eventType) {
-            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
-                scrollJob?.cancel()
-            }
-
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                if (event.className?.startsWith("android.widget.") == true) {
-                    // ignore system UI
-                    return
-                }
-                if (event.packageName == "com.android.settings" && validTitles.intersect(event.text.toSet()).isNotEmpty()) {
-                    mLayout.isVisible = true
-                } else {
-                    mLayout.isVisible = false
-                }
-            }
-
-            AccessibilityEvent.TYPE_VIEW_SCROLLED -> {
-
-            }
-
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> scrollJob?.cancel()
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> handleWindowStateChanged(event)
             else -> {
                 // do nothing
             }
         }
     }
 
+    private fun handleWindowStateChanged(event: AccessibilityEvent) {
+        if (event.className?.startsWith("android.widget.") == true) {
+            return
+        }
+        overlayLayout.isVisible =
+            event.packageName == "com.android.settings" && event.text.any { it in validTitles }
+    }
+
     override fun onInterrupt() {
     }
 
     override fun onServiceConnected() {
-        /**
-         * copy from GlobalActionBarService https://github.com/android/codelab-android-accessibility/tree/master/GlobalActionBarService
-         */
-        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        mLayout = FrameLayout(this)
+        setupOverlayLayout()
+        configureScrollButton()
+        launchDeveloperSettings()
+    }
+
+    private fun setupOverlayLayout() {
+        val windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        overlayLayout = FrameLayout(this)
         val lp = WindowManager.LayoutParams()
         lp.type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
         lp.format = PixelFormat.TRANSLUCENT
@@ -76,20 +68,20 @@ class AccessibilityHelperService : AccessibilityService() {
         lp.height = WindowManager.LayoutParams.WRAP_CONTENT
         lp.gravity = Gravity.TOP or Gravity.END
         val inflater = LayoutInflater.from(this)
-        inflater.inflate(R.layout.action_bar, mLayout)
-        wm.addView(mLayout, lp)
-
-        configureScrollButton()
-
-        val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        startActivity(intent)
+        inflater.inflate(R.layout.action_bar, overlayLayout)
+        windowManager.addView(overlayLayout, lp)
     }
 
     private fun configureScrollButton() {
-        mLayout.findViewById<View>(R.id.scroll).setOnClickListener {
+        overlayLayout.findViewById<View>(R.id.scroll).setOnClickListener {
             scrollToTarget(TARGET_TEXT)
         }
+    }
+
+    private fun launchDeveloperSettings() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
     }
 
     private fun scrollToTarget(target: String) {
@@ -110,19 +102,19 @@ class AccessibilityHelperService : AccessibilityService() {
             return
         }
 
-        val scrollableNode = findScrollableNode(rootInActiveWindow) ?: return
-        scrollableNode.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD.id)
-        delay(INTERVAL_SCROLL)
-        scrollToTarget(target)
+        findScrollableNode(rootInActiveWindow)?.let { scrollableNode ->
+            scrollableNode.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD.id)
+            delay(INTERVAL_SCROLL)
+            scrollToTarget(target)
+        }
     }
 
     /**
      * copy from GlobalActionBarService https://github.com/android/codelab-android-accessibility/tree/master/GlobalActionBarService
      */
     private fun findScrollableNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        val deque: Deque<AccessibilityNodeInfo> = ArrayDeque()
-        deque.add(root)
-        while (!deque.isEmpty()) {
+        val deque = ArrayDeque<AccessibilityNodeInfo>().apply { add(root) }
+        while (deque.isNotEmpty()) {
             val node = deque.removeFirst()
             if (node.actionList.contains(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)) {
                 return node
